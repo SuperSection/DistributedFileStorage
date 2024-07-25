@@ -1,7 +1,17 @@
 package main
 
-import "fmt"
+import (
+	"log"
+
+	"github.com/SuperSection/FileStorage/p2p"
+)
 
 func main() {
-	fmt.Println("Bring it on!")
+	tr := p2p.NewTCPTransport(":5500")
+
+	if err := tr.ListenAndAccept(); err != nil {
+		log.Fatal(err)
+	}
+
+	select {}
 }
