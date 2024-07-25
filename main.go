@@ -7,7 +7,13 @@ import (
 )
 
 func main() {
-	tr := p2p.NewTCPTransport(":5500")
+	tcpOtions := p2p.TCPTransportOptions{
+		ListenAddress: ":5500",
+		Decoder:       &p2p.GOBDecoder{},
+		HandshakeFunc: p2p.NOPHandshakeFunc,
+	}
+
+	tr := p2p.NewTCPTransport(tcpOtions)
 
 	if err := tr.ListenAndAccept(); err != nil {
 		log.Fatal(err)
