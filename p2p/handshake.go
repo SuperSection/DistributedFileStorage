@@ -1,7 +1,7 @@
 package p2p
 
 /*
-	HandshakeFun
+	HandshakeFunc
 */
 type HandshakeFunc func(Peer) error
 
