@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/SuperSection/FileStorage/p2p"
 )
@@ -14,6 +15,7 @@ func OnPeer(peer p2p.Peer) error {
 }
 
 func main() {
+
 	tcpOptions := p2p.TCPTransportOptions{
 		ListenAddress: ":3300",
 		HandshakeFunc: p2p.NOPHandshakeFunc,
@@ -21,18 +23,22 @@ func main() {
 		OnPeer:        OnPeer,
 	}
 
-	tr := p2p.NewTCPTransport(tcpOptions)
+	tcpTransport := p2p.NewTCPTransport(tcpOptions)
 
-	go func() {
-		for {
-			msg := <-tr.Consume()
-			fmt.Printf("%+v\n", msg)
-		}
-	}()
-
-	if err := tr.ListenAndAccept(); err != nil {
-		log.Fatal(err)
+	fileServerOptions := FileServerOptions{
+		StorageRoot:       "3000_network",
+		PathTransformFunc: CASPathTransformFunc,
+		Transport:         tcpTransport,
 	}
 
-	select {}
+	fileServer := NewFileServer(fileServerOptions)
+
+	go func() {
+		time.Sleep(time.Second * 5)
+		fileServer.Stop()
+	}()
+
+	if err := fileServer.Start(); err != nil {
+		log.Fatal(err)
+	}
 }

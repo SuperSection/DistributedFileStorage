@@ -110,6 +110,10 @@ func (store *Storage) Delete(key string) error {
 	return os.RemoveAll(firstPathnameWithRoot)
 }
 
+func (store *Storage) Write(key string, r io.Reader) error {
+	return store.writeStream(key, r)
+}
+
 func (store *Storage) Read(key string) (io.Reader, error) {
 	file, err := store.readStream(key)
 	if err != nil {

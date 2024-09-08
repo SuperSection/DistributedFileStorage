@@ -15,4 +15,5 @@ This can be of the form (TCP, UDP, websockets, ...)
 type Transport interface {
 	ListenAndAccept() error
 	Consume() <-chan RPC
+	Close() error
 }
