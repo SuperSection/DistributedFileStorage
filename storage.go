@@ -52,19 +52,19 @@ func (p PathKey) FullPath() string {
 	return fmt.Sprintf("%s/%s", p.Pathname, p.Filename)
 }
 
-var DefaultPathTransformFunc = func(key string) PathKey { 
+var DefaultPathTransformFunc = func(key string) PathKey {
 	return PathKey{
 		Pathname: key,
 		Filename: key,
-	} 
+	}
 }
 
 type StorageOptions struct {
-	/* 
-	Root is the folder name of the root, 
-	containing all the folders / files of the system
+	/*
+		Root is the folder name of the root,
+		containing all the folders / files of the system
 	*/
-	Root string
+	Root              string
 	PathTransformFunc PathTransformFunc
 }
 
@@ -90,10 +90,13 @@ func (store *Storage) Has(key string) bool {
 
 	fullPathWithRoot := fmt.Sprintf("%s/%s", store.Root, pathKey.FullPath())
 	_, err := os.Stat(fullPathWithRoot)
-	
+
 	return !errors.Is(err, os.ErrNotExist)
 }
 
+func (s *Storage) Clear() error {
+	return os.RemoveAll(s.Root)
+}
 
 func (store *Storage) Delete(key string) error {
 	pathKey := store.PathTransformFunc(key)
@@ -106,7 +109,6 @@ func (store *Storage) Delete(key string) error {
 
 	return os.RemoveAll(firstPathnameWithRoot)
 }
-
 
 func (store *Storage) Read(key string) (io.Reader, error) {
 	file, err := store.readStream(key)
@@ -122,13 +124,11 @@ func (store *Storage) Read(key string) (io.Reader, error) {
 	return buf, err
 }
 
-
 func (store *Storage) readStream(key string) (io.ReadCloser, error) {
 	pathKey := store.PathTransformFunc(key)
 	fullPathWithRoot := fmt.Sprintf("%s/%s", store.Root, pathKey.FullPath())
 	return os.Open(fullPathWithRoot)
 }
-
 
 func (store *Storage) writeStream(key string, r io.Reader) error {
 	pathKey := store.PathTransformFunc(key)
@@ -154,3 +154,4 @@ func (store *Storage) writeStream(key string, r io.Reader) error {
 
 	return nil
 }
+

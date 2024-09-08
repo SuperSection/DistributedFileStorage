@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"testing"
 )
@@ -19,48 +20,51 @@ func TestPathTransformFunc(t *testing.T) {
 	}
 }
 
-func TestStorageDeleteKey(t *testing.T) {
-	options := StorageOptions{
-		PathTransformFunc: CASPathTransformFunc,
-	}
-	storage := NewStorage(options)
-	key := "onepiecepicture"
-	data := []byte("some jpg bytes")
+func TestStorage(t *testing.T) {
+	s := newStorage()
+	defer teardown(t, s)
 
-	if err := storage.writeStream(key, bytes.NewReader(data)); err != nil {
-		t.Error(err)
-	}
+	for i := 0; i < 50; i++ {
+		key := fmt.Sprintf("foo_%d", i)
+		data := []byte("some jpg bytes")
 
-	if err := storage.Delete(key); err != nil {
-		t.Error(err)
+		if err := s.writeStream(key, bytes.NewReader(data)); err != nil {
+			t.Error(err)
+		}
+
+		if ok := s.Has(key); !ok {
+			t.Errorf("expected to have have %s", key)
+		}
+
+		r, err := s.Read(key)
+		if err != nil {
+			t.Error(err)
+		}
+
+		b, _ := io.ReadAll(r)
+		if string(b) != string(data) {
+			t.Errorf("expected %s have %s", data, b)
+		}
+
+		if err := s.Delete(key); err != nil {
+			t.Error(err)
+		}
+
+		if ok := s.Has(key); ok {
+			t.Errorf("expected to NOT have key %s", key)
+		}
 	}
 }
 
-func TestStorage(t *testing.T) {
-	options := StorageOptions{
+func newStorage() *Storage {
+	opts := StorageOptions{
 		PathTransformFunc: CASPathTransformFunc,
 	}
-	storage := NewStorage(options)
-	key := "onepiecepicture"
-	data := []byte("some jpg bytes")
+	return NewStorage(opts)
+}
 
-	if err := storage.writeStream(key, bytes.NewReader(data)); err != nil {
+func teardown(t *testing.T, s *Storage) {
+	if err := s.Clear(); err != nil {
 		t.Error(err)
 	}
-
-	if ok := storage.Has(key); !ok {
-		t.Errorf("expected to have have %s", key)
-	}
-
-	r, err := storage.Read(key)
-	if err != nil {
-		t.Error(err)
-	}
-
-	b, _ := io.ReadAll(r)
-	if string(b) != string(data) {
-		t.Errorf("expected %s have %s", data, b)
-	}
-
-	storage.Delete(key)
 }

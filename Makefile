@@ -5,4 +5,4 @@ run: build
 	@./bin/filestorage
 
 test:
-	@go test ./... -v --race 
+	@go test ./... 
