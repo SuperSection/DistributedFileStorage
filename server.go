@@ -1,7 +1,10 @@
 package main
 
 import (
+	"bytes"
+	"encoding/gob"
 	"fmt"
+	"io"
 	"log"
 	"sync"
 
@@ -39,6 +42,48 @@ func NewFileServer(opts FileServerOptions) *FileServer {
 	}
 }
 
+func (server *FileServer) broadcast(msg *Message) error {
+	peers := []io.Writer{}
+	for _, peer := range server.peers {
+		peers = append(peers, peer)
+	}
+
+	mw := io.MultiWriter(peers...)
+	return gob.NewEncoder(mw).Encode(msg)
+}
+
+type Message struct {
+	From    string
+	Payload any
+}
+
+type MessageData struct {
+	key  string
+	Data []byte
+}
+
+func (server *FileServer) StoreData(key string, r io.Reader) error {
+	// 1. Store this file to disk
+	// 2. Broadcast this file to all known peers in the network
+
+	buf := new(bytes.Buffer)
+	tee := io.TeeReader(r, buf)
+
+	if err := server.storage.Write(key, tee); err != nil {
+		return nil
+	}
+
+	payload := &MessageData{
+		key:  key,
+		Data: buf.Bytes(),
+	}
+
+	return server.broadcast(&Message{
+		From:    server.Transport.ListenAddr(),
+		Payload: payload,
+	})
+}
+
 func (server *FileServer) Stop() {
 	close(server.quitch)
 }
@@ -47,9 +92,9 @@ func (s *FileServer) OnPeer(p p2p.Peer) error {
 	s.peerLock.Lock()
 	defer s.peerLock.Unlock()
 
-	s.peers[p.RemoteAddress().String()] = p
+	s.peers[p.RemoteAddr().String()] = p
 
-	log.Printf("connected with remote %s", p.RemoteAddress())
+	log.Printf("connected with remote %s", p.RemoteAddr())
 	return nil
 }
 
@@ -62,11 +107,28 @@ func (server *FileServer) loop() {
 	for {
 		select {
 		case msg := <-server.Transport.Consume():
-			fmt.Println(msg)
+			var m Message
+			if err := gob.NewDecoder(bytes.NewReader(msg.Payload)).Decode(&m); err != nil {
+				log.Println(err)
+			}
+
+			if err := server.handleMessage(&m); err != nil {
+				log.Println(err)
+			}
+
 		case <-server.quitch:
 			return
 		}
 	}
+}
+
+func (s *FileServer) handleMessage(msg *Message) error {
+	switch v := msg.Payload.(type) {
+	case *MessageData:
+		fmt.Printf("received data %+v\n", v)
+	}
+
+	return nil
 }
 
 func (server *FileServer) bootstrapNetwork() error {
