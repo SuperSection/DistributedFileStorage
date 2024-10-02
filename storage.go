@@ -114,10 +114,15 @@ func (store *Storage) Write(key string, r io.Reader) (int64, error) {
 	return store.writeStream(key, r)
 }
 
-func (store *Storage) Read(key string) (io.Reader, error) {
-	file, err := store.readStream(key)
+/*
+	 TODO: Instead of copying directly to a reader we first copy this into a buffer.
+
+		Maybe just return the file from the readStream?
+*/
+func (store *Storage) Read(key string) (int64, io.Reader, error) {
+	n, file, err := store.readStream(key)
 	if err != nil {
-		return nil, err
+		return n, nil, err
 	}
 
 	defer file.Close()
@@ -125,13 +130,24 @@ func (store *Storage) Read(key string) (io.Reader, error) {
 	buf := new(bytes.Buffer)
 	_, err = io.Copy(buf, file)
 
-	return buf, err
+	return n, buf, err
 }
 
-func (store *Storage) readStream(key string) (io.ReadCloser, error) {
+func (store *Storage) readStream(key string) (int64, io.ReadCloser, error) {
 	pathKey := store.PathTransformFunc(key)
 	fullPathWithRoot := fmt.Sprintf("%s/%s", store.Root, pathKey.FullPath())
-	return os.Open(fullPathWithRoot)
+
+	file, err := os.Open(fullPathWithRoot)
+	if err != nil {
+		return 0, nil, err
+	}
+
+	fi, err := file.Stat()
+	if err != nil {
+		return 0, nil, err
+	}
+
+	return fi.Size(), file, nil
 }
 
 func (store *Storage) writeStream(key string, r io.Reader) (int64, error) {
