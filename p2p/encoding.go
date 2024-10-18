@@ -41,4 +41,3 @@ func (dec *DefaultDecoder) Decode(r io.Reader, msg *RPC) error {
 
 	return nil
 }
-
